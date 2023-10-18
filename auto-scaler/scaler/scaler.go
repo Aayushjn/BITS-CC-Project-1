@@ -15,7 +15,7 @@ type AutoScaler struct {
 	ticker          *time.Ticker
 	loadBalancerUrl *url.URL
 	backendMapping  map[string]string
-	networkId       string
+	networkName     string
 }
 
 func (a *AutoScaler) Start() {
@@ -51,10 +51,8 @@ func NewAutoScaler(frequency time.Duration, networkName, loadBalancerUrl string)
 		return nil, err
 	}
 
-	var networkId string
-	networkId, err = docker.GetDockerNetworkId(cli, networkName)
 	if err != nil {
-		networkId, err = docker.CreateDockerNetwork(cli, networkName)
+		err = docker.CreateDockerNetwork(cli, networkName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create docker network: %w", err)
 		}
@@ -65,6 +63,6 @@ func NewAutoScaler(frequency time.Duration, networkName, loadBalancerUrl string)
 		ticker:          time.NewTicker(frequency),
 		loadBalancerUrl: parsed,
 		backendMapping:  make(map[string]string, 10),
-		networkId:       networkId,
+		networkName:     networkName,
 	}, nil
 }
