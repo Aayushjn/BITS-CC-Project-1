@@ -1,6 +1,10 @@
 package strategy
 
 import (
+	"hash"
+	"hash/fnv"
+	"net/http"
+
 	"github.com/aayushjn/load-balancer/balancer/backend"
 	"github.com/aayushjn/load-balancer/errors"
 	"github.com/aayushjn/load-balancer/util"
@@ -8,15 +12,23 @@ import (
 
 type IpHashStrategy struct {
 	backends []*backend.Backend
+	hasher   hash.Hash32
 }
 
 func (ih *IpHashStrategy) Backends() []*backend.Backend {
 	return ih.backends
 }
 
-func (ih *IpHashStrategy) Next() *backend.Backend {
-	// TODO: Implement this
-	return nil
+func (ih *IpHashStrategy) Next(req *http.Request) *backend.Backend {
+	numBackends := len(ih.backends)
+	if numBackends == 0 {
+		return nil
+	}
+
+	ih.hasher.Reset()
+	ih.hasher.Write([]byte(req.RemoteAddr))
+	idx := ih.hasher.Sum32() % uint32(numBackends)
+	return ih.backends[idx]
 }
 
 func (ih *IpHashStrategy) Register(b *backend.Backend, params map[string]any) error {
@@ -43,5 +55,6 @@ func (ih *IpHashStrategy) Unregister(backendUrl string) error {
 func NewIpHashStrategy() *IpHashStrategy {
 	return &IpHashStrategy{
 		backends: make([]*backend.Backend, 0, util.MaxBackends),
+		hasher:   fnv.New32a(),
 	}
 }

@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"net/http"
 	"sync/atomic"
 
 	"github.com/aayushjn/load-balancer/balancer/backend"
@@ -17,7 +18,7 @@ func (lc *LeastConnsStrategy) Backends() []*backend.Backend {
 	return lc.backends
 }
 
-func (lc *LeastConnsStrategy) Next() *backend.Backend {
+func (lc *LeastConnsStrategy) Next(req *http.Request) *backend.Backend {
 	if len(lc.backends) == 0 {
 		return nil
 	}

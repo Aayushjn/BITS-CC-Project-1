@@ -39,7 +39,7 @@ func (lb *LoadBalancer) HealthCheck() {
 
 func (lb *LoadBalancer) RequestHandler() http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		backend := lb.balancingStrategy.Next()
+		backend := lb.balancingStrategy.Next(r)
 		if backend != nil {
 			backend.IncrementInFlightRequests()
 			backend.ReverseProxy.ServeHTTP(w, r)

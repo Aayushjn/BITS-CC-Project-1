@@ -1,18 +1,24 @@
 package strategy
 
-import "github.com/aayushjn/load-balancer/balancer/backend"
+import (
+	"net/http"
+
+	"github.com/aayushjn/load-balancer/balancer/backend"
+)
 
 type LoadBalancingStrategy interface {
 	Backends() []*backend.Backend
-	Next() *backend.Backend
+	Next(req *http.Request) *backend.Backend
 	Register(*backend.Backend, map[string]any) error
 	Unregister(string) error
 }
 
-var AllowedStrategies = []string{"least_conns", "power_of_2", "random", "round_robin", "weighted_round_robin"}
+var AllowedStrategies = []string{"ip_hash", "least_conns", "power_of_2", "random", "round_robin", "weighted_round_robin"}
 
 func NewLoadBalancingStrategy(strategy string) LoadBalancingStrategy {
 	switch strategy {
+	case "ip_hash":
+		return NewIpHashStrategy()
 	case "least_conns":
 		return NewLeastConnsStrategy()
 	case "power_of_2":
