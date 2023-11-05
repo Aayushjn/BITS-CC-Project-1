@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"net/http"
 	"sync/atomic"
 
 	"github.com/aayushjn/load-balancer/balancer/backend"
@@ -21,15 +22,14 @@ func (rr *RoundRobinStrategy) Backends() []*backend.Backend {
 	return rr.backends
 }
 
-func (rr *RoundRobinStrategy) Next() *backend.Backend {
+func (rr *RoundRobinStrategy) Next(req *http.Request) *backend.Backend {
 	numBackends := len(rr.backends)
 	if numBackends == 0 {
 		return nil
 	}
 
 	next := rr.nextIndex(numBackends)
-	l := numBackends + next
-	for i := next; i < l; i++ {
+	for i := next; i < numBackends+next; i++ {
 		idx := i % numBackends
 		if rr.backends[idx].IsAlive() {
 			if i != next {

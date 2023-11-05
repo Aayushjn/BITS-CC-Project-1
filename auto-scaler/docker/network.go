@@ -2,27 +2,24 @@ package docker
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
 
-func GetDockerNetworkId(cli *client.Client, name string) (string, error) {
+func CreateDockerNetwork(cli *client.Client, name string) error {
 	ctx := context.Background()
 
-	resp, err := cli.NetworkInspect(ctx, name, types.NetworkInspectOptions{})
-	if err != nil {
-		return "", err
+	_, err := cli.NetworkInspect(ctx, name, types.NetworkInspectOptions{})
+	if err == nil {
+		// since Docker network already exists, there is no need to create a new one
+		return nil
 	}
-	return resp.ID, nil
-}
 
-func CreateDockerNetwork(cli *client.Client, name string) (string, error) {
-	ctx := context.Background()
-
-	resp, err := cli.NetworkCreate(ctx, name, types.NetworkCreate{})
+	_, err = cli.NetworkCreate(ctx, name, types.NetworkCreate{})
 	if err != nil {
-		return "", err
+		return fmt.Errorf("failed to create network: %w", err)
 	}
-	return resp.ID, nil
+	return nil
 }

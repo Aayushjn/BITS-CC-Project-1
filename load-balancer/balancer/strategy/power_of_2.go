@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"math/rand"
+	"net/http"
 
 	"github.com/aayushjn/load-balancer/balancer/backend"
 	"github.com/aayushjn/load-balancer/errors"
@@ -20,7 +21,7 @@ func (po2 *PowerOfTwoStrategy) Backends() []*backend.Backend {
 	return po2.backends
 }
 
-func (po2 *PowerOfTwoStrategy) Next() *backend.Backend {
+func (po2 *PowerOfTwoStrategy) Next(req *http.Request) *backend.Backend {
 	numBackends := len(po2.backends)
 	if numBackends == 0 {
 		return nil

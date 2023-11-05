@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"net/http"
 	"sync/atomic"
 
 	"github.com/aayushjn/load-balancer/balancer/backend"
@@ -10,15 +11,18 @@ import (
 )
 
 type WeightedRoundRobinStrategy struct {
-	backends      []*backend.Backend
-	weights       cmap.ConcurrentMap[string, int64]
-	current       atomic.Uint64
-	maxWeight     atomic.Int64
-	currentGcd    atomic.Int64
-	currentWeight atomic.Int64
+	backends []*backend.Backend
+	weights  cmap.ConcurrentMap[string, int64]
+	current  atomic.Uint64
+	counter  atomic.Uint64
 }
 
 func (wrr *WeightedRoundRobinStrategy) nextIndex(numBackends int) int {
+	currentBackend := wrr.backends[wrr.current.Load()]
+	if wt, ok := wrr.weights.Get(currentBackend.URL.String()); ok && wrr.counter.Load() < uint64(wt) {
+		return int(wrr.current.Load())
+	}
+	wrr.counter.Store(0)
 	return int(wrr.current.Add(uint64(1)) % uint64(numBackends))
 }
 
@@ -26,31 +30,21 @@ func (wrr *WeightedRoundRobinStrategy) Backends() []*backend.Backend {
 	return wrr.backends
 }
 
-func (wrr *WeightedRoundRobinStrategy) Next() *backend.Backend {
+func (wrr *WeightedRoundRobinStrategy) Next(req *http.Request) *backend.Backend {
 	numBackends := len(wrr.backends)
 	if numBackends == 0 {
 		return nil
 	}
 
-	for i := 1; i <= numBackends; i++ {
-		next := wrr.nextIndex(numBackends)
-		if next == 0 {
-			wrr.currentWeight.Add(^wrr.currentGcd.Load())
-			if wrr.currentWeight.Load() <= 0 {
-				wrr.currentWeight.Store(wrr.maxWeight.Load())
+	next := wrr.nextIndex(numBackends)
+	for i := next; i < numBackends+next; i++ {
+		idx := i % numBackends
+		if wrr.backends[idx].IsAlive() {
+			if i != next {
+				wrr.current.Store(uint64(idx))
 			}
-		}
-
-		nextBackend := wrr.backends[next]
-		if !nextBackend.IsAlive() {
-			continue
-		}
-		nextBackendWeight, ok := wrr.weights.Get(nextBackend.URL.String())
-		if !ok {
-			nextBackendWeight = 1
-		}
-		if nextBackendWeight >= wrr.currentWeight.Load() {
-			return wrr.backends[next]
+			wrr.counter.Add(1)
+			return wrr.backends[idx]
 		}
 	}
 	return nil
@@ -62,19 +56,7 @@ func (wrr *WeightedRoundRobinStrategy) Register(b *backend.Backend, params map[s
 	}
 	wrr.backends = append(wrr.backends, b)
 	wrr.weights.Set(b.URL.String(), int64(params["weight"].(float64)))
-	backendWeight, ok := wrr.weights.Get(b.URL.String())
-	if !ok {
-		backendWeight = 1
-	}
-	if wrr.currentGcd.Load() == 0 {
-		wrr.currentGcd.Store(backendWeight)
-		wrr.maxWeight.Store(backendWeight)
-	} else {
-		wrr.currentGcd.Store(util.Gcd(wrr.currentGcd.Load(), backendWeight))
-		if wrr.maxWeight.Load() < backendWeight {
-			wrr.maxWeight.Store(backendWeight)
-		}
-	}
+
 	return nil
 }
 
