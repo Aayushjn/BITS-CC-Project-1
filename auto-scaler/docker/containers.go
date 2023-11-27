@@ -21,6 +21,10 @@ type ContainerStats struct {
 	Memory float64
 }
 
+func (cs ContainerStats) Norm() float64 {
+	return (cs.CPU + cs.Memory) / 2
+}
+
 func CreateAndStartDockerContainer(cli *client.Client, containerImage, containerName, networkName string, startArgs ...string) (Container, error) {
 	ctx := context.Background()
 	containerConf := &container.Config{

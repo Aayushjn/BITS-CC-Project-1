@@ -46,7 +46,7 @@ func (s *TimeSeriesStrategy) AnalyzeAndPlan(numBackends int) int {
 	}
 }
 
-func NewTimeSeriesStrategy(samples int, cpuThreshold, memoryThreshold float64) *TimeSeriesStrategy {
+func NewTimeSeriesStrategy(cpuThreshold, memoryThreshold float64) *TimeSeriesStrategy {
 	return &TimeSeriesStrategy{
 		alpha:           0.6,
 		gamma:           0.2,
