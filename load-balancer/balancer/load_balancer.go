@@ -14,6 +14,10 @@ type LoadBalancer struct {
 	sessionTable      cmap.ConcurrentMap[string, *backend.Backend]
 }
 
+func (lb *LoadBalancer) Backends() []*backend.Backend {
+	return lb.balancingStrategy.Backends()
+}
+
 func (lb *LoadBalancer) Register(b *backend.Backend, params map[string]any) error {
 	b.SetProxyHandler(lb.RequestHandler())
 	return lb.balancingStrategy.Register(b, params)

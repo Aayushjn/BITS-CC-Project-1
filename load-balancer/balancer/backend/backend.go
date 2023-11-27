@@ -14,9 +14,9 @@ import (
 )
 
 type Backend struct {
-	URL              *url.URL
+	URL              *url.URL `json:"url"`
 	alive            atomic.Bool
-	ReverseProxy     *httputil.ReverseProxy
+	ReverseProxy     *httputil.ReverseProxy `json:"-"`
 	inFlightRequests atomic.Uint64
 }
 
