@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "web-app"
+version = "0.1.0"
+description = ""
+authors = ["Aayush Jain <aayushjn11@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Django = {version = "4.2.7", extras = ["argon2"]}
+gunicorn = "21.2.0"
+python-dotenv = "1.0.0"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.11.0"
+reorder-python-imports = "^3.12.0"
+flake8 = "^6.1.0"
+
+[tool.black]
+line-length = 120
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

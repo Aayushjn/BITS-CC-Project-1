@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}
+  Deployment:
+
+    {{ object.service }}
+
+
+{% endblock title %}
+{% block content %}
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-12">
+        <h2>
+
+
+          {{ object.service }}
+
+      </h2>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-sm-12">
+      <a class="btn btn-primary" href="{% url 'deployment:update' object.pk %}" role="button">Edit</a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-sm-12">
+      Load Balancer Type: <b>{{ object.lb_type }}</b>
+    </div>
+    <div class="col-sm-12">
+      Auto Scaler Type: <b>{{ object.scaler_type }}</b>
+    </div>
+    <div class="col-sm-12">
+      CPU Threshold: <b>{{ object.scaler_cpu_threshold }}</b>
+    </div>
+    <div class="col-sm-12">
+      Memory Threshold: <b>{{ object.scaler_mem_threshold }}</b>
+    </div>
+</div>
+{% endblock content %}

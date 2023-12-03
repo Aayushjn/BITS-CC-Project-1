@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}
+  Deployments
+{% endblock title %}
+{% block content %}
+  <div class="row">
+    <div class="col-sm-12">
+      <a class="btn btn-primary" href="{% url 'deployment:new' %}" role="button">Add</a>
+    </div>
+  </div>
+  <ul>
+    {% for deployment in object_list %}
+    <li class="list-group-item"><a href="{% url 'deployment:detail' deployment.id %}">{{ deployment.service }}</a></li>
+    {% empty %}
+    <li class="list-group-item">No deployments</li>
+    {% endfor %}
+  </ul>
+{% endblock content %}
