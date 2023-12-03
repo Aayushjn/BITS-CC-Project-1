@@ -3,6 +3,22 @@
   <component name="CompilerConfiguration">
     <annotationProcessing>
       <profile default="true" name="Default" enabled="true" />
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$PROJECT_DIR$/../.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.30/f195ee86e6c896ea47a1d39defbe20eb59cd149d/lombok-1.18.30.jar" />
+        </processorPath>
+        <module name="services.user.main" />
+        <module name="services.common.main" />
+        <module name="services.hotel.main" />
+        <module name="services.booking.main" />
+        <module name="services.packages.main" />
+        <module name="services.ticket.main" />
+      </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="services.package.main" target="20" />
+      <module name="services.package.test" target="20" />
+    </bytecodeTargetLevel>
   </component>
 </project>
