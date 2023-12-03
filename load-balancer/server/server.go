@@ -9,7 +9,6 @@ import (
 	"github.com/aayushjn/load-balancer/balancer"
 	"github.com/aayushjn/load-balancer/balancer/backend"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 func apiRouter(r chi.Router, lb *balancer.LoadBalancer) chi.Router {
@@ -67,15 +66,66 @@ func apiRouter(r chi.Router, lb *balancer.LoadBalancer) chi.Router {
 }
 
 func NewServer(lb *balancer.LoadBalancer, port int) *http.Server {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger, middleware.Recoverer)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_api/backend/" {
+			if r.Method == http.MethodGet {
+				backends := lb.Backends()
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(backends)
+			} else if r.Method == http.MethodPost {
+				defer r.Body.Close()
+				var params map[string]any
+				err := json.NewDecoder(r.Body).Decode(&params)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
 
-	apiRouter(r, lb)
-	r.Get("/", lb.RequestHandler())
+				backendUrl := params["url"].(string)
+
+				// TODO: Make POST idempotent for the same backendUrl
+
+				b, err := backend.NewBackend(backendUrl)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				err = lb.Register(b, params)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+			} else if r.Method == http.MethodDelete {
+				defer r.Body.Close()
+				var params map[string]any
+				err := json.NewDecoder(r.Body).Decode(&params)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
+				backendUrl := params["url"].(string)
+				err = lb.Unregister(backendUrl)
+				if err == nil {
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(err.Error()))
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+			return
+		}
+
+		lb.RequestHandler()(w, r)
+	})
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf("0.0.0.0:%d", port),
-		Handler:           r,
+		Handler:           handler,
 		ReadTimeout:       1 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		IdleTimeout:       30 * time.Second,
