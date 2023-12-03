@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/aayushjn/auto-scaler/config"
@@ -43,7 +45,7 @@ func (a *AutoScaler) DiscoverServices() error {
 		if err != nil {
 			continue
 		}
-		url := "http://" + cData.IPAddress
+		url := "http://" + cData.IPAddress + ":8888"
 		var resp *http.Response
 		var jsonBody []byte
 		body := map[string]any{
@@ -93,23 +95,32 @@ func (a *AutoScaler) Monitor() {
 		stats.CPU /= float64(numBackends)
 		stats.Memory /= float64(numBackends)
 		a.strategy.AddMeasurement(stats)
-	}
-	a.pauseMonitoring = true
-	delta := a.strategy.AnalyzeAndPlan(len(a.backendMapping))
-	if delta == 0 {
-		a.logger.Info("No need to scale")
-	} else if delta > 0 {
-		a.logger.Info("Scaling up by ", fmt.Sprint(delta), " containers")
-		err := a.ScaleUp(delta)
-		if err != nil {
-			a.logger.Error(err.Error())
+
+		a.pauseMonitoring = true
+		delta := a.strategy.AnalyzeAndPlan(len(a.backendMapping))
+		if delta == 0 {
+			if len(a.backendMapping) > 2 {
+				err := a.ScaleDown(len(a.backendMapping) - 2)
+				if err != nil {
+					a.logger.Error(err.Error())
+				}
+			} else {
+				a.logger.Info("No need to scale")
+			}
+		} else if delta > 0 {
+			a.logger.Info("Scaling up by ", fmt.Sprint(delta), " containers")
+			err := a.ScaleUp(delta)
+			if err != nil {
+				a.logger.Error(err.Error())
+			}
+		} else {
+			a.logger.Info("Scaling down by ", fmt.Sprint(delta), " containers")
+			err := a.ScaleDown(int(math.Abs(float64(delta))))
+			if err != nil {
+				a.logger.Error(err.Error())
+			}
 		}
-	} else {
-		a.logger.Info("Scaling down by ", fmt.Sprint(delta), " containers")
-		err := a.ScaleDown(delta)
-		if err != nil {
-			a.logger.Error(err.Error())
-		}
+		a.pauseMonitoring = false
 	}
 }
 
@@ -123,6 +134,8 @@ func (a *AutoScaler) ScaleUp(count int) error {
 		return &scalerErrors.ErrBackendLimitOverflow{}
 	}
 
+	count = int(math.Min(float64(count), float64(10-len(a.backendMapping))))
+
 	var joinedErr error = nil
 	var err error
 	var container docker.Container
@@ -133,12 +146,19 @@ func (a *AutoScaler) ScaleUp(count int) error {
 			a.serviceConf.Image,
 			fmt.Sprintf("%s-%s", a.serviceConf.Name, xid.New().String()),
 			a.networkName,
+			[]string{
+				"DB_HOST=" + a.serviceConf.DbHost,
+				"DB_PORT=" + strconv.Itoa(a.serviceConf.DbPort),
+				"DB_NAME=" + a.serviceConf.DbName,
+				"DB_USER=" + a.serviceConf.DbUser,
+				"DB_PASSWORD=" + a.serviceConf.DbPassword,
+			},
 		)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
 			continue
 		}
-		url := "http://" + container.IPAddress
+		url := "http://" + container.IPAddress + ":8888"
 		var resp *http.Response
 		var jsonBody []byte
 		body := map[string]any{
@@ -165,9 +185,11 @@ func (a *AutoScaler) ScaleUp(count int) error {
 	return joinedErr
 }
 func (a *AutoScaler) ScaleDown(count int) error {
-	if len(a.backendMapping) == 2 || count > 8 {
+	if len(a.backendMapping) == 2 {
 		return &scalerErrors.ErrBackendLimitUnderflow{}
 	}
+
+	count = int(math.Min(float64(count), float64(len(a.backendMapping)-2)))
 
 	var joinedErr error = nil
 
@@ -191,7 +213,7 @@ func (a *AutoScaler) ScaleDown(count int) error {
 
 	var err error
 	for _, entry := range keys {
-		url := "http://" + entry.Key
+		url := "http://" + entry.Key + ":8888"
 		var resp *http.Response
 		var jsonBody []byte
 		body := map[string]any{
@@ -232,7 +254,16 @@ func NewAutoScaler(frequency time.Duration, conf config.Config) (*AutoScaler, er
 
 	cData, err := docker.GetDockerContainer(cli, "lb-"+conf.Service.Name, conf.Network)
 	if err != nil {
-		cData, err = docker.CreateAndStartDockerContainer(cli, conf.LoadBalancer.Image, fmt.Sprintf("lb-%s", conf.Service.Name), conf.Network)
+		cData, err = docker.CreateAndStartDockerContainer(
+			cli,
+			conf.LoadBalancer.Image,
+			fmt.Sprintf("lb-%s", conf.Service.Name),
+			conf.Network,
+			[]string{},
+			"/load-balancer",
+			"-balancing-strategy",
+			conf.LoadBalancer.Strategy,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create and start docker container: %w", err)
 		}
@@ -248,5 +279,6 @@ func NewAutoScaler(frequency time.Duration, conf config.Config) (*AutoScaler, er
 		serviceConf:     conf.Service,
 		logger:          *slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		strategy:        strategy.NewThresholdStrategy(30.5, 40.5),
+		pauseMonitoring: false,
 	}, nil
 }

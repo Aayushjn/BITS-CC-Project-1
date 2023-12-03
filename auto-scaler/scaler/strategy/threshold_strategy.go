@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"math"
+	"runtime"
 
 	"github.com/aayushjn/auto-scaler/docker"
 )
@@ -39,8 +40,12 @@ func (s *ThresholdStrategy) AnalyzeAndPlan(numBackends int) int {
 	cpuAvg /= float64(numStats)
 	memAvg /= float64(numStats)
 
-	deltaCpu := int(math.Ceil(float64(numBackends) * (1.0 - (cpuAvg / s.cpuThreshold))))
-	deltaMem := int(math.Ceil(float64(numBackends) * (1.0 - (memAvg / s.memoryThreshold))))
+	if cpuAvg > 100 {
+		cpuAvg /= float64(runtime.NumCPU())
+	}
+
+	deltaCpu := int(math.Ceil(float64(numBackends) * ((cpuAvg / s.cpuThreshold) - 1.0)))
+	deltaMem := int(math.Ceil(float64(numBackends) * ((memAvg / s.memoryThreshold) - 1.0)))
 
 	if deltaCpu >= deltaMem {
 		return deltaCpu

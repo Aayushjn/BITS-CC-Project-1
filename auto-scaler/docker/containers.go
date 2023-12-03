@@ -25,12 +25,13 @@ func (cs ContainerStats) Norm() float64 {
 	return (cs.CPU + cs.Memory) / 2
 }
 
-func CreateAndStartDockerContainer(cli *client.Client, containerImage, containerName, networkName string, startArgs ...string) (Container, error) {
+func CreateAndStartDockerContainer(cli *client.Client, containerImage, containerName, networkName string, environment []string, startArgs ...string) (Container, error) {
 	ctx := context.Background()
 	containerConf := &container.Config{
 		Hostname:   containerName,
 		Image:      containerImage,
 		Entrypoint: strslice.StrSlice(startArgs),
+		Env:        environment,
 	}
 	hostConfig := &container.HostConfig{
 		RestartPolicy: container.RestartPolicy{

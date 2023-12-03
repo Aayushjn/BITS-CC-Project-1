@@ -36,8 +36,8 @@ func (s *TimeSeriesStrategy) AnalyzeAndPlan(numBackends int) int {
 	predCpu := s.smoothed.CPU + s.trend.CPU
 	predMem := s.smoothed.Memory + s.trend.Memory
 
-	deltaCpu := int(math.Ceil(float64(numBackends) * (1.0 - (predCpu / s.cpuThreshold))))
-	deltaMem := int(math.Ceil(float64(numBackends) * (1.0 - (predMem / s.memoryThreshold))))
+	deltaCpu := int(math.Ceil(float64(numBackends) * ((predCpu / s.cpuThreshold) - 1.0)))
+	deltaMem := int(math.Ceil(float64(numBackends) * ((predMem / s.memoryThreshold) - 1.0)))
 
 	if deltaCpu >= deltaMem {
 		return deltaCpu

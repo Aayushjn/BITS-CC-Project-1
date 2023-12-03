@@ -12,8 +12,13 @@ type Config struct {
 }
 
 type ServiceConfig struct {
-	Name  string `toml:"name"`
-	Image string `toml:"image"`
+	Name       string `toml:"name"`
+	Image      string `toml:"image"`
+	DbHost     string `toml:"db_host"`
+	DbPort     int    `toml:"db_port"`
+	DbName     string `toml:"db_name"`
+	DbUser     string `toml:"db_user"`
+	DbPassword string `toml:"db_password"`
 }
 
 type LoadBalancerConfig struct {
